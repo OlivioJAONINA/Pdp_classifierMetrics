@@ -1,0 +1,44 @@
+models:
+  LogisticRegression:
+    estimator: sklearn.linear_model.LogisticRegression
+    param_grid:
+      max_iter: [500, 1000]
+      C: [0.1, 1, 10]
+
+  RandomForest:
+    estimator: sklearn.ensemble.RandomForestClassifier
+    param_grid:
+      n_estimators: [100, 200]
+      max_depth: [1, 10]
+
+  GradientBoosting:
+    estimator: sklearn.ensemble.GradientBoostingClassifier
+    param_grid:
+      learning_rate: [0.01, 0.1]
+      n_estimators: [100, 200]
+  
+  SVM_linear:
+    estimator: sklearn.svm.SVC
+    param_grid:
+      kernel: ['linear']
+      class_weight: ['balanced']
+      C: [0.1, 1.0, 10.0]
+      random_state: [42]
+
+  AdaBoost:
+    estimator: sklearn.ensemble.AdaBoostClassifier
+    param_grid:
+      n_estimators: [100, 200, 300, 500]  # Plus d'estimateurs
+      learning_rate: [0.01, 0.5, 1.0]  # Taux plus élevés possibles
+      algorithm: ['SAMME.R']  # SAMME.R plus stable pour données continues
+      random_state: [42]
+
+  NeuralNetwork:
+    estimator: sklearn.neural_network.MLPClassifier
+    param_grid:
+      hidden_layer_sizes: [[100], [200], [300], [100, 50], [200, 100], [300, 150]]
+      activation: ['relu']
+      solver: ['adam']
+      early_stopping: [True]
+      validation_fraction: [0.1]
+      random_state: [42]
