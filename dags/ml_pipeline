@@ -1,0 +1,90 @@
+from datetime import datetime, timedelta
+from airflow import DAG
+from airflow.operators.python_operator import PythonOperator
+from airflow.operators.dummy_operator import DummyOperator
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from scripts.check_new_data import check_new_data
+from scripts.train_model import train_and_compare
+from scripts.processing import *
+
+default_args = {
+    'owner': 'airflow',
+    'depends_on_past': False,
+    'start_date': datetime(2023, 1, 1),
+    'email_on_failure': False,
+    'email_on_retry': False,
+    'retries': 1,
+    'retry_delay': timedelta(minutes=0.5),
+}
+
+preproc_params={"raw_data_dir" :'/opt/airflow/data/raw',
+ "processed_dir" :'/opt/airflow/data/processed',
+"corr_trait" :False, 
+"corr_threshold":0.95,
+"apply_pca" : True, 
+"pca_variance_threshold":0.95,
+"combat":False}
+
+
+
+dag = DAG(
+    'ml_pipeline',
+    default_args=default_args,
+    description='Pipeline ML complet avec Airflow',
+    schedule_interval=timedelta(days=1),
+    catchup=False,
+)
+
+start_task = DummyOperator(task_id='start', dag=dag)
+
+check_data_task = PythonOperator(
+    task_id='check_new_data',
+    python_callable=check_new_data,
+    op_kwargs={'raw_data_dir': '/opt/airflow/data/raw'},
+    dag=dag,
+)
+
+
+
+process_data_task = PythonOperator(
+    task_id='process_data',
+    python_callable=preprocess_data,
+    op_kwargs=preproc_params,
+    dag=dag,
+)
+
+train_models_pathologic_task = PythonOperator(
+    task_id='train_models_pathologic',
+    python_callable=train_and_compare,
+    op_kwargs={
+            "data_path": "/opt/airflow/data/processed/data_processed.csv",
+            "models_dir": "/opt/airflow/best_models/best_pathologic_model",
+            "mlflow_uri": "file:///opt/airflow/mlruns",
+            "config_path": "/opt/airflow/scripts/config.yaml",
+            "target_var": "Class_simple",
+            "experiment_name": "classification_pathologic",
+            "export_dir": "/opt/airflow/best_models/best_pathologic_model"
+        },
+    dag=dag,
+)
+
+train_models_sick_task = PythonOperator(
+    task_id='train_models_sick',
+    python_callable=train_and_compare,
+    op_kwargs={
+            "data_path": "/opt/airflow/data/processed/data_processed.csv",
+            "mlflow_uri": "file:///opt/airflow/mlruns",
+            "models_dir": "/opt/airflow/best_models/best_sick_model",
+            "config_path": "/opt/airflow/scripts/config.yaml",
+            "target_var": "sick",
+            "experiment_name": "classification_sick",
+            "export_dir": "/opt/airflow/best_models/best_sick_model"
+        },
+    dag=dag,
+)
+
+end_task = DummyOperator(task_id='end', dag=dag)
+
+start_task >> check_data_task >>process_data_task>> [train_models_pathologic_task, train_models_sick_task] >> end_task
