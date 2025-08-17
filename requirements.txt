@@ -1,0 +1,5 @@
+apache-airflow==2.5.0
+mlflow==1.30.0
+scikit-learn==1.0.2
+pandas==1.4.3
+combat==0.1.0

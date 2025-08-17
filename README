@@ -1,0 +1,166 @@
+
+# 🚀 ML Pipeline avec Airflow, MLflow & Streamlit
+
+Ce projet propose un pipeline complet de Machine Learning orchestré par **Apache Airflow**, avec **prétraitement**, **entraînement automatique**, **tracking des modèles avec MLflow** et **visualisation via Streamlit**.
+
+---
+
+## 🧰 Technologies utilisées
+
+- Python 3.9+
+- Apache Airflow
+- MLflow
+- Scikit-learn
+- pandas, numpy, joblib, combat
+- Docker & Docker Compose
+- Streamlit
+- PostgreSQL (Airflow backend)
+---
+
+## 📦 Structure du projet
+
+```
+.
+├── dags/                  # DAG Airflow (ml_pipeline.py)
+├── data/                 
+│   ├── raw/               # Fichiers CSV bruts
+│   └── processed/         # Données transformées
+├── mlruns/                # Artifacts MLflow
+├── models/                # Modèles ML sauvegardés
+├── scripts/               
+│   ├── processing.py
+│   ├── train_model.py
+│   ├── check_new_data.py
+│   ├── utils.py
+│   └── streamlit_app.py   # Interface utilisateur
+├── Dockerfile.mlflow      # Image MLflow
+├── docker-compose.yml     # Lancement global
+└── README.md
+```
+
+---
+
+## 💻 Pré-requis
+
+### 1. Installer Docker + Docker Compose
+
+#### 🐧 Linux
+
+```bash
+sudo apt update
+sudo apt install docker.io docker-compose -y
+sudo usermod -aG docker $USER
+newgrp docker
+```
+
+#### 🍎 macOS
+
+- Installez Docker Desktop depuis [https://www.docker.com/products/docker-desktop/](https://www.docker.com/products/docker-desktop/)
+- Activez l'extension **"Containers"** si vous utilisez **VSCode**
+
+#### 🪟 Windows
+
+- Installez **Docker Desktop for Windows**
+- Activez :
+  - **WSL2 Backend**
+  - **Integration VSCode (Containers Extension)**
+
+👉 Redémarrez votre machine après installation.
+
+---
+
+## ⚙️ Lancement du projet
+
+1. Clonez ce dépôt :
+
+```bash
+git clone <lien_du_repo>
+cd <nom_du_dossier>
+```
+
+2. Lancez tous les services :
+
+```bash
+docker-compose up --build
+```
+
+Cela démarre :
+- le serveur Airflow (`localhost:8080`)
+- le serveur MLflow (`localhost:5000`)
+- l'interface Streamlit (`localhost:8501`)
+
+---
+
+## 🌀 Accès aux interfaces
+
+| Interface       | URL                     | Identifiants |
+|----------------|--------------------------|--------------|
+| Airflow        | http://localhost:8080    | admin/admin  |
+| MLflow         | http://localhost:5000    | (pas d’auth) |
+| Streamlit App  | http://localhost:8501    |              |
+
+---
+
+## 📊 Utilisation
+
+1. Déposez un fichier `.csv` dans `data/raw/`
+2. Le DAG Airflow `ml_pipeline` (planifié quotidiennement) :
+   - vérifie les nouveaux fichiers
+   - prétraite les données (corrélation, PCA, ComBat)
+   - entraîne plusieurs modèles pour deux cibles (`Class_simple` et `sick`)
+   - sauvegarde le meilleur modèle dans `models/`
+   - loggue les expériences sur MLflow
+
+3. Lancez l’interface Streamlit (`localhost:8501`)
+   - uploadez un nouveau fichier CSV
+   - les données sont transformées selon le pipeline
+   - les prédictions sont affichées
+
+---
+
+## 📁 Configuration des modèles
+
+Dans `scripts/config.yaml`, vous pouvez personnaliser :
+
+```yaml
+models:
+  LogisticRegression:
+    estimator: sklearn.linear_model.LogisticRegression
+    param_grid:
+      max_iter: [500, 1000]
+      C: [0.1, 1, 10]
+```
+
+Ajoutez d'autres modèles et grilles d’hyperparamètres ici.
+
+---
+
+## 🧪 Test rapide (optionnel)
+
+```bash
+docker-compose exec webserver airflow dags trigger -d "Trigger manuel" ml_pipeline
+```
+
+---
+
+## 🧹 Nettoyage
+
+```bash
+docker-compose down -v
+```
+
+---
+
+## ✨ À venir
+
+- Monitoring Prometheus/Grafana
+- Sauvegarde vers MinIO / S3
+- Déploiement automatique du modèle (API FastAPI)
+
+---
+
+## 🤝 Auteurs
+
+Projet conçu par Aymen Hassin
+
+---

@@ -1,0 +1,105 @@
+version: '3'
+
+services:
+  postgres:
+    image: postgres:13
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - postgres-db-volume:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U airflow"]
+      interval: 5s
+      retries: 5
+  mlflow:
+    build:
+      context: ./mlflow-ui
+    command: >
+      mlflow server
+      --backend-store-uri file:///mlflow
+      --default-artifact-root /mlflow
+      --host 0.0.0.0
+      --port 5001
+    ports:
+      - "5001:5001"
+    volumes:
+      - ./mlruns:/mlflow
+    environment:
+      - MLFLOW_HOST=0.0.0.0
+      - MLFLOW_PORT=5001
+    depends_on:
+      - postgres
+
+  webserver:
+    image: apache/airflow:2.5.0
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - PYTHONPATH=/opt/airflow
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
+      - AIRFLOW__CORE__FERNET_KEY=46BKJoQYlPPOexq0OhDZnIlNepKFf87WFwLbfzqDDho=
+      - AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=true
+      - AIRFLOW__CORE__LOAD_EXAMPLES=false
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./scripts:/opt/airflow/scripts
+      - ./data:/opt/airflow/data
+      - ./best_models:/opt/airflow/best_models
+      - ./mlruns:/opt/airflow/mlruns
+      - ./logs:/opt/airflow/logs
+    ports:
+      - "8080:8080"
+    command: >
+      bash -c "
+      airflow db upgrade &&
+      airflow users create --username admin --password admin --firstname Admin --lastname User --role Admin --email admin@example.com &&
+      airflow webserver 
+      "
+
+  scheduler:
+    image: apache/airflow:2.5.0
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - PYTHONPATH=/opt/airflow
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
+      - AIRFLOW__CORE__FERNET_KEY=46BKJoQYlPPOexq0OhDZnIlNepKFf87WFwLbfzqDDho=
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./scripts:/opt/airflow/scripts
+      - ./data:/opt/airflow/data
+      - ./best_models:/opt/airflow/best_models
+      - ./mlruns:/opt/airflow/mlruns
+      - ./logs:/opt/airflow/logs
+    command: bash -c "pip install mlflow scikit-learn pandas combat==0.3.3 pycombat==0.20 && airflow scheduler"
+
+
+  streamlit:
+    image: python:3.9
+    working_dir: /app
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./scripts:/app/scripts
+      - ./data:/app/data
+      - ./best_models:/app/models
+    environment:
+      - PYTHONPATH=/app
+    command: >
+      bash -c "
+      pip install numpy==1.23.5 scikit-learn==1.2.2 joblib==1.2.0 combat==0.3.3 pycombat==0.20 dill&&
+      pip install streamlit pandas mlflow &&
+      streamlit run scripts/streamlit_app.py --server.port=8501 --server.address=0.0.0.0
+      "
+
+volumes:
+  postgres-db-volume:
+  
